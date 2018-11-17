@@ -40,10 +40,13 @@ private:
     Mat morphological(const Mat &imgHSV);
     Mat birdViewTranform(const Mat &source);
     void fillLane(Mat &src);
+    Mat sobelfilter( const Mat& img_gray);
+
     vector<Mat> splitLayer(const Mat &src, int dir = VERTICAL);
     vector<vector<Point> > centerRoadSide(const vector<Mat> &src, int dir = VERTICAL);
     void detectLeftRight(const vector<vector<Point> > &points);
     Mat laneInShadow(const Mat &src);
+
 
     int minThreshold[3] = {0, 0, 180};
     int maxThreshold[3] = {179, 30, 255};

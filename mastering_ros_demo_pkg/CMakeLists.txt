@@ -76,3 +76,9 @@ target_link_libraries(demo_msg_subscriber ${catkin_LIBRARIES})
 #
 add_executable(my_pub_vel src/my_pub_vel.cpp)
 target_link_libraries(my_pub_vel ${catkin_LIBRARIES})
+
+add_executable(my_pub_sign src/my_pub_sign.cpp)
+target_link_libraries(my_pub_sign ${catkin_LIBRARIES})
+
+add_executable(my_sub_sign src/my_sub_sign.cpp)
+target_link_libraries(my_sub_sign ${catkin_LIBRARIES})

@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
+#include <std_msgs/Float32.h>
 
 #include <opencv2/highgui/highgui.hpp>
 
@@ -10,10 +11,32 @@
 
 bool STREAM = true;
 
-VideoCapture capture("video.avi");
+VideoCapture capture("/home/nam/Desktop/dropbox/CDS2018/nam_v2.mp4");
 DetectLane *detect;
 CarControl *car;
 int skipFrame = 1;
+static int flag =2;
+void sign_callback(const std_msgs::Float32::ConstPtr& msg) {
+    if(msg->data == 1)
+    {
+        ROS_INFO("re trai");
+        flag = 1;
+
+    }
+    else if(msg->data == 0)
+    {
+        ROS_INFO("re phai");
+
+        flag = 0;
+    }
+    else if(msg->data == 2)
+    {
+        ROS_INFO("ahihi khong co gi dau");
+        flag = 2;
+    }
+
+}
+
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -25,15 +48,26 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
         cv::imshow("View", cv_ptr->image);
         detect->update(cv_ptr->image);
-        car->driverCar(detect->getLeftLane(), detect->getRightLane(), 50);
+        /****************************************************************/
+        if((flag == 1) || (flag == 0))
+        {
+            car->driverCar(detect->getLeftLane(), detect->getRightLane(), 10,flag);
+        }
+        else
+        {
+            car->driverCar(detect->getLeftLane(), detect->getRightLane(), 60,flag);
+        }
+        /*****************************************************************/
+
     }
     catch (cv_bridge::Exception& e)
     {
         ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
 
-    ROS_INFO("%d",cnt);
-    cnt++;
+    //ROS_INFO("%d",cnt);
+    // cnt++;
+    ROS_INFO("%d", flag);
     waitKey(10);
 }
 
@@ -47,7 +81,8 @@ void videoProcess()
         
         imshow("View", src);
         detect->update(src);
-        waitKey(30);
+        if (waitKey(30) >= 0)
+        break;
     }
 }
 
@@ -59,6 +94,7 @@ int main(int argc, char **argv)
     cv::namedWindow("Threshold");
     cv::namedWindow("Bird View");
     cv::namedWindow("Lane Detect");
+     cv::namedWindow("Debug");
 
     detect = new DetectLane();
     car = new CarControl();
@@ -67,6 +103,8 @@ int main(int argc, char **argv)
         cv::startWindowThread();
 
         ros::NodeHandle nh;
+        ros::NodeHandle nh_get_sign;
+        ros::Subscriber number_subscriber = nh_get_sign.subscribe("/sign",10,sign_callback);
         image_transport::ImageTransport it(nh);
         image_transport::Subscriber sub = it.subscribe("sudo_image", 1, imageCallback);
 

@@ -43,11 +43,10 @@ void DetectLane::update(const Mat &src)
     
     vector<Mat> layers1 = splitLayer(img);
     vector<vector<Point> > points1 = centerRoadSide(layers1);
-    detectLeftRight(points1);
-
     // vector<Mat> layers2 = splitLayer(img, HORIZONTAL);
     // vector<vector<Point> > points2 = centerRoadSide(layers2, HORIZONTAL);
-    // detectLeftRight(points2);
+
+    detectLeftRight(points1);
 
     Mat birdView, lane;
     birdView = Mat::zeros(img.size(), CV_8UC3);
@@ -57,7 +56,7 @@ void DetectLane::update(const Mat &src)
      {
         for (int j = 0; j < points1[i].size(); j++)
         {
-            circle(birdView, points1[i][j], 1, Scalar(0,255,0), 2, 8, 0 );
+            circle(lane, points1[i][j], 1, Scalar(0,255,0), 2, 8, 0 );
         }
     }
 
@@ -68,6 +67,7 @@ void DetectLane::update(const Mat &src)
     //         circle(birdView, points2[i][j], 1, Scalar(0,255,0), 2, 8, 0 );
     //     }
     // }
+
     // imshow("Debug", birdView);
 
     for (int i = 1; i < leftLane.size(); i++)
@@ -80,32 +80,50 @@ void DetectLane::update(const Mat &src)
 
     for (int i = 1; i < rightLane.size(); i++)
     {
-        if (rightLane[i] != null) 
-        {
+        if (rightLane[i] != null) {
             circle(lane, rightLane[i], 1, Scalar(255,0,0), 2, 8, 0 );
         }
     }
+
     imshow("Lane Detect", lane);
 }
 
 Mat DetectLane::preProcess(const Mat &src)
 {
-    Mat imgThresholded, imgHSV, dst;
+    Mat imgThresholded, imgHSV, imgsobel, dst;
 
     cvtColor(src, imgHSV, COLOR_BGR2HSV);
 
     inRange(imgHSV, Scalar(minThreshold[0], minThreshold[1], minThreshold[2]), 
-        Scalar(maxThreshold[0], maxThreshold[1], maxThreshold[2]), imgThresholded);
-    //bitwise_not(imgThresholded, imgThresholded);
-    dst = birdViewTranform(imgThresholded);
+        Scalar(maxThreshold[0], maxThreshold[1], maxThreshold[2]), 
+        imgThresholded);
+
+    imgsobel = sobelfilter( imgThresholded );
+    dst = birdViewTranform( imgsobel );
 
     imshow("Bird View", dst);
-
     fillLane(dst);
 
     imshow("Binary", imgThresholded);
 
     return dst;
+}
+
+Mat DetectLane::sobelfilter( const Mat& img_gray)
+{
+    int ddepth = CV_8U;
+    int scale = 1;
+    int delta = 0;
+    Mat grad_x, grad_y, abs_grad_x, abs_grad_y, grad, thresh_grad;
+    Sobel(img_gray, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
+    convertScaleAbs( grad_x, abs_grad_x );
+    Sobel(img_gray, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT );
+    convertScaleAbs( grad_y, abs_grad_y );
+
+    
+    addWeighted( abs_grad_x, 0.2, abs_grad_y, 0.8, 0, grad );
+    threshold(grad,thresh_grad, 80, 255,THRESH_BINARY);
+    return thresh_grad;
 }
 
 Mat DetectLane::laneInShadow(const Mat &src)
@@ -122,7 +140,8 @@ Mat DetectLane::laneInShadow(const Mat &src)
     cvtColor(shadow, shadowHSV, COLOR_BGR2HSV);
 
     inRange(shadowHSV, Scalar(minLaneInShadow[0], minLaneInShadow[1], minLaneInShadow[2]), 
-        Scalar(maxLaneInShadow[0], maxLaneInShadow[1], maxLaneInShadow[2]), laneShadow);
+        Scalar(maxLaneInShadow[0], maxLaneInShadow[1], maxLaneInShadow[2]), 
+        laneShadow);
 
     return laneShadow;
 }
@@ -182,12 +201,10 @@ vector<vector<Point> > DetectLane::centerRoadSide(const vector<Mat> &src, int di
 
         for (int j = 0; j < cntsN; j++) {
             int area = contourArea(cnts[j], false);
-            if (area > 3) 
-            {
+            if (area > 3) {
                 Moments M1 = moments(cnts[j], false);
                 Point2f center1 = Point2f(static_cast<float> (M1.m10 / M1.m00), static_cast<float> (M1.m01 / M1.m00));
                 if (dir == VERTICAL) {
-
                     center1.y = center1.y + slideThickness*i;
                 } 
                 else
@@ -213,6 +230,7 @@ void DetectLane::detectLeftRight(const vector<vector<Point> > &points)
     
     leftLane.clear();
     rightLane.clear();
+
     for (int i = 0; i < BIRDVIEW_HEIGHT / slideThickness; i ++)
     {
         leftLane.push_back(null);
@@ -243,18 +261,22 @@ void DetectLane::detectLeftRight(const vector<vector<Point> > &points)
         for (int j = 0; j < points[i].size(); j++)
         {
             int err = 320;
-            for (int k = 0; k < points[i + 1].size(); k ++)
+            for (int m = 1; m < min(points.size() - 1 - i, 5); m++)
             {
-                if (abs(points[i + 1][k].x - points[i][j].x) < dis && 
-                abs(points[i + 1][k].x - points[i][j].x) < err) 
+                bool check = false;
+                for (int k = 0; k < points[i + 1].size(); k ++)
                 {
-                    err = abs(points[i + 1][k].x - points[i][j].x);
-
-                    pointMap[i][j] = pointMap[i + 1][k] + 1;
-                    prePoint[i][j] = k;
-                    postPoint[i + 1][k] = j;
-                }
-            } 
+                    if (abs(points[i + m][k].x - points[i][j].x) < dis && 
+                    abs(points[i + m][k].x - points[i][j].x) < err) {
+                        err = abs(points[i + m][k].x - points[i][j].x);
+                        pointMap[i][j] = pointMap[i + m][k] + 1;
+                        prePoint[i][j] = k;
+                        postPoint[i + m][k] = j;
+                        check = true;
+                    }
+                }   
+                break; 
+            }
             
             if (pointMap[i][j] > max) 
             {
@@ -371,8 +393,8 @@ Mat DetectLane::birdViewTranform(const Mat &src)
     Point2f dst_vertices[4];
     dst_vertices[0] = Point(0, 0);
     dst_vertices[1] = Point(BIRDVIEW_WIDTH, 0);
-    dst_vertices[2] = Point(BIRDVIEW_WIDTH - 105, BIRDVIEW_HEIGHT);
-    dst_vertices[3] = Point(105, BIRDVIEW_HEIGHT);
+    dst_vertices[2] = Point(BIRDVIEW_WIDTH - 90, BIRDVIEW_HEIGHT);
+    dst_vertices[3] = Point(90, BIRDVIEW_HEIGHT);
 
     Mat M = getPerspectiveTransform(src_vertices, dst_vertices);
 

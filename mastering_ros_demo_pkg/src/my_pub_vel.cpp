@@ -13,7 +13,7 @@ void my_callback(const geometry_msgs::Twist::ConstPtr & msg );
 int main(int argc, char **argv)
 {
     /* code */
-    ros::init(argc,argv,"my_cmd_vel");
+    ros::init(argc,argv,"my_cmd_vel_test");
     ros::NodeHandle nh_re,nh_tra_linear;
     ros::NodeHandle nh_tra_ang;
     sent_vel_linear = nh_tra_linear.advertise<std_msgs::Float32>("/sudo_speed",1);

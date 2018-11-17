@@ -15,7 +15,7 @@
 using namespace std;
 using namespace cv;
 
-#define KP 2
+#define KP 1
 #define KI 0.0
 #define KD 0.000
 #define T 0.02
@@ -25,7 +25,7 @@ class CarControl
 public:
     CarControl();
     ~CarControl();
-    void driverCar(const vector<Point> &left, const vector<Point> &right, float velocity);
+    void driverCar(const vector<Point> &left, const vector<Point> &right, float velocity, int flag);
 
 private:
     float errorAngle(const Point &dst);

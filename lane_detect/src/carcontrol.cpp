@@ -52,33 +52,73 @@ float CarControl::errorAngle(const Point &dst)
     
     return sex_porn;
 
-    // if (dx < 0) return -atan(-dx / dy) * 180 / pi;
+    // if (dx < 0) return -atan(-dx / dy ) * 180 / pi;
 
     // return atan(dx / dy) * 180 / pi;
 }
 
-void CarControl::driverCar(const vector<Point> &left, const vector<Point> &right, float velocity)
+void CarControl::driverCar(const vector<Point> &left, const vector<Point> &right, float velocity, int flag)
 {
     int i = left.size() - 11;
     float error = preError;
-    while (left[i] == DetectLane::null && right[i] == DetectLane::null) // ko co lane
+    Mat lane ;
+    lane = Mat::zeros( Size(320,240), CV_8UC3);
+    static Point null = Point();
+    if ( flag == 2) // binh thuong
     {
-        i--;
-        if (i < 0) return;
+        while (left[i] == DetectLane::null && right[i] == DetectLane::null) // ko co lane
+        {
+            i--;
+            if (i < 0) return;
+        }
+        if (left[i] != DetectLane::null && right[i] !=  DetectLane::null) // co ca 2 lane
+        {
+            error = errorAngle((left[i] + right[i]) / 2);
+        } 
+        else if (left[i] != DetectLane::null) // co lane trai
+        {
+            error = errorAngle(left[i] + Point(laneWidth / 2, 0));
+        }
+        else    // co lane phai
+        {
+            error = errorAngle(right[i] - Point(laneWidth / 2, 0));
+        }
     }
-    if (left[i] != DetectLane::null && right[i] !=  DetectLane::null) // co ca 2 lane
+    else if( flag == 1) // re trai
     {
-        error = errorAngle((left[i] + right[i]) / 2);
-    } 
-    else if (left[i] != DetectLane::null) // co lane trai
-    {
+        while (left[i] == DetectLane::null ) // ko co lane
+        {
+            i--;
+            if (i < 0) return;
+        }
         error = errorAngle(left[i] + Point(laneWidth / 2, 0));
-    }
-    else    // co lane phai
-    {
-        error = errorAngle(right[i] - Point(laneWidth / 2, 0));
-    }
 
+        for (int i = 1; i < left.size(); i++)
+        {
+            if (left[i] != null)
+            {
+                circle(lane, left[i], 1, Scalar(0,0,255), 2, 8, 0 );
+            }
+        }
+    }
+    else if( flag == 0) // re phai 
+    {
+        while (right[i] == DetectLane::null) // ko co lane
+        {
+            i--;
+            if (i < 0) return;
+        }
+        error = errorAngle(right[i] - Point(laneWidth / 2, 0));
+        for (int i = 1; i < right.size(); i++)
+        {
+            if (right[i] != null) {
+                circle(lane, right[i], 1, Scalar(255,0,0), 2, 8, 0 );
+            }
+        }
+    }
+    else ROS_INFO(" bug roi kia ahihi do` ngok'");
+
+    imshow( "Debug", lane);
     std_msgs::Float32 angle;
     std_msgs::Float32 speed;
 
